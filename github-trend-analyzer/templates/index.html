@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GitHub Repository Trend Analyzer</title>
+
+    <!-- Chart.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <style>
+        /* ── Reset & Base ── */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #0d1117;
+            --surface: #161b22;
+            --surface2: #1c2128;
+            --border: #30363d;
+            --text: #e6edf3;
+            --muted: #8b949e;
+            --accent: #2f81f7;
+            --green: #3fb950;
+            --orange: #f78166;
+            --purple: #bc8cff;
+            --yellow: #e3b341;
+            --teal: #39d353;
+            --red: #f85149;
+
+            --c1: #2f81f7;
+            /* Python   - blue     */
+            --c2: #f7d154;
+            /* JS       - yellow   */
+            --c3: #3178c6;
+            /* TS       - darker blue */
+            --c4: #f74c00;
+            /* Rust     - orange   */
+            --c5: #00acd7;
+            /* Go       - teal     */
+            --c6: #b07219;
+            /* Java     - brown    */
+            --c7: #9561ea;
+            /* C++      - purple   */
+            --c8: #7f52ff;
+            /* Kotlin   - violet   */
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: 60px;
+        }
+
+        /* ── Header ── */
+        header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--accent);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .logo h1 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .logo span {
+            font-size: 12px;
+            color: var(--muted);
+            display: block;
+            margin-top: 2px;
+        }
+
+        .header-tag {
+            background: rgba(47, 129, 247, 0.15);
+            color: var(--accent);
+            border: 1px solid rgba(47, 129, 247, 0.3);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        /* ── Main Layout ── */
+        main {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 32px;
+        }
+
+        /* ── Section titles ── */
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 16px;
+            margin-top: 40px;
+        }
+
+        /* ── Summary Cards ── */
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 8px;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px 24px;
+            transition: border-color 0.2s;
+        }
+
+        .card:hover {
+            border-color: var(--accent);
+        }
+
+        .card-label {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+
+        .card-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .card-sub {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        .card-accent {
+            border-top: 2px solid var(--accent);
+        }
+
+        .card-green {
+            border-top: 2px solid var(--green);
+        }
+
+        .card-purple {
+            border-top: 2px solid var(--purple);
+        }
+
+        .card-yellow {
+            border-top: 2px solid var(--yellow);
+        }
+
+        /* ── Filter Bar ── */
+        .filter-bar {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+        }
+
+        .filter-bar label {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .filter-bar select,
+        .filter-bar input {
+            background: var(--surface2);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 13px;
+            cursor: pointer;
+            min-width: 7.5rem;
+            flex-shrink: 0;
+        }
+
+        .filter-bar select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .pill {
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--muted);
+            transition: all 0.15s;
+        }
+
+        .pill.active,
+        .pill:hover {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        /* ── Chart Grid ── */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 900px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+
+            .grid-3 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ── Chart Card ── */
+        .chart-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px 24px;
+        }
+
+        .chart-card.full {
+            grid-column: 1 / -1;
+        }
+
+        .chart-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .chart-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .chart-desc {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 3px;
+        }
+
+        .chart-badge {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: rgba(47, 129, 247, 0.15);
+            color: var(--accent);
+        }
+
+        .chart-wrap {
+            position: relative;
+        }
+
+        /* ── Table ── */
+        .table-wrap {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th {
+            text-align: left;
+            padding: 10px 16px;
+            color: var(--muted);
+            font-weight: 500;
+            font-size: 12px;
+            border-bottom: 1px solid var(--border);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        td {
+            padding: 10px 16px;
+            border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+            color: var(--text);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .badge-blue {
+            background: rgba(47, 129, 247, .2);
+            color: #79b8ff;
+        }
+
+        .badge-green {
+            background: rgba(63, 185, 80, .2);
+            color: #56d364;
+        }
+
+        .badge-orange {
+            background: rgba(247, 76, 0, .2);
+            color: #ffa657;
+        }
+
+        .badge-purple {
+            background: rgba(188, 140, 255, .2);
+            color: #d2a8ff;
+        }
+
+        .badge-yellow {
+            background: rgba(227, 179, 65, .2);
+            color: #e3b341;
+        }
+
+        .badge-teal {
+            background: rgba(0, 172, 215, .2);
+            color: #39c5cf;
+        }
+
+        /* ── Loading ── */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            color: var(--muted);
+            font-size: 13px;
+            gap: 10px;
+        }
+
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ── Footer ── */
+        footer {
+            text-align: center;
+            padding: 40px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ── Header ── -->
+    <header>
+        <div class="logo">
+            <div class="logo-icon">&#9670;</div>
+            <div>
+                <h1>GitHub Repository Trend Analyzer</h1>
+                <span>Big Data Analytics Project — 2018 to 2024</span>
+            </div>
+        </div>
+        <span class="header-tag">Spark + MongoDB + Flask</span>
+    </header>
+
+    <main>
+
+        <!-- ── Summary Cards ── -->
+        <p class="section-title">Overview</p>
+        <div class="cards">
+            <div class="card card-accent">
+                <div class="card-label">Total Repositories</div>
+                <div class="card-value" id="stat-total">—</div>
+                <div class="card-sub">across all languages</div>
+            </div>
+            <div class="card card-green">
+                <div class="card-label">Languages Tracked</div>
+                <div class="card-value" id="stat-langs">—</div>
+                <div class="card-sub">programming languages</div>
+            </div>
+            <div class="card card-purple">
+                <div class="card-label">Years Covered</div>
+                <div class="card-value" id="stat-years" style="font-size:20px;padding-top:4px">—</div>
+                <div class="card-sub">year range</div>
+            </div>
+            <div class="card card-yellow">
+                <div class="card-label">Top Language</div>
+                <div class="card-value" id="stat-top" style="font-size:22px;padding-top:4px">—</div>
+                <div class="card-sub">by repo count</div>
+            </div>
+        </div>
+
+        <!-- ── Filter Bar ── -->
+        <p class="section-title">Filters</p>
+        <div class="filter-bar">
+            <label>Year:</label>
+            <select id="filter-year" onchange="applyFilters()">
+                <option value="all">All Years</option>
+            </select>
+
+            <label style="margin-left:8px">Language:</label>
+            <select id="filter-lang" onchange="applyFilters()">
+                <option value="all">All Languages</option>
+                <option value="Python">Python</option>
+                <option value="JavaScript">JavaScript</option>
+                <option value="TypeScript">TypeScript</option>
+                <option value="Rust">Rust</option>
+                <option value="Go">Go</option>
+                <option value="Java">Java</option>
+                <option value="C++">C++</option>
+                <option value="Kotlin">Kotlin</option>
+            </select>
+
+            <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+                <button class="pill active" onclick="setView('all',this)">All Charts</button>
+                <button class="pill" onclick="setView('growth',this)">Growth</button>
+                <button class="pill" onclick="setView('stars',this)">Stars</button>
+                <button class="pill" onclick="setView('topics',this)">Topics</button>
+                <button class="pill" onclick="setView('user',this)">User Analysis</button>
+            </div>
+        </div>
+
+
+        <!-- ── Chart Row 1: Main growth line chart ── -->
+        <p class="section-title" data-chart-view="growth">Language growth over time</p>
+        <div style="margin-bottom:20px">
+            <div class="chart-card" data-chart-view="growth">
+                <div class="chart-header">
+                    <div>
+                        <div class="chart-title">Total stars per language per year</div>
+                        <div class="chart-desc">Sum of stars in the sample (repo counts often hit the ~1k search cap per language, so stars show real spread)</div>
+                    </div>
+                    <span class="chart-badge">RDD — reduceByKey</span>
+                </div>
+                <div class="chart-wrap">
+                    <canvas id="chart-line" height="90"></canvas>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ── Chart Row 2: Growth rate + Market share ── -->
+        <div class="grid-2" style="margin-bottom:20px">
+            <div class="chart-card" data-chart-view="growth">
+                <div class="chart-header">
+                    <div>
+                        <div class="chart-title">Year-over-year growth of total stars (%)</div>
+                        <div class="chart-desc">Change in sum of stars vs prior year (avoids flat 0% when repo counts are capped)</div>
+                    </div>
+                    <span class="chart-badge">Spark SQL — LAG()</span>
+                </div>
+                <canvas id="chart-growth" height="160"></canvas>
+            </div>
+            <div class="chart-card" data-chart-view="growth">
+                <div class="chart-header">
+                    <div>
+                        <div class="chart-title">Share of stars by language</div>
+                        <div class="chart-desc">Each language’s share of total stars in the dataset for the selected year (not equal 1k slices)</div>
+                    </div>
+                    <span class="chart-badge">Spark SQL — share %</span>
+                </div>
+                <canvas id="chart-pie" height="160"></canvas>
+            </div>
+        </div>
+
+
+        <!-- ── Chart Row 3: Stars + Topics ── -->
+        <div class="grid-2" style="margin-bottom:20px">
+            <div class="chart-card" data-chart-view="stars">
+                <div class="chart-header">
+                    <div>
+                        <div class="chart-title">Average stars per language</div>
+                        <div class="chart-desc">Which language has the highest-quality (most starred) repos?</div>
+                    </div>
+                    <span class="chart-badge">RDD — avg(stars)</span>
+                </div>
+                <canvas id="chart-stars" height="160"></canvas>
+            </div>
+            <div class="chart-card" data-chart-view="topics">
+                <div class="chart-header">
+                    <div>
+                        <div class="chart-title">Top trending topics</div>
+                        <div class="chart-desc">Most common topics across all repos (latest year)</div>
+                    </div>
+                    <span class="chart-badge">RDD — flatMap</span>
+                </div>
+                <canvas id="chart-topics" height="160"></canvas>
+            </div>
+        </div>
+
+
+        <!-- ── Top Repos Table ── -->
+        <p class="section-title" data-chart-view="stars">Top repositories by stars</p>
+        <div class="chart-card" data-chart-view="stars">
+            <div class="chart-header">
+                <div>
+                    <div class="chart-title">Most starred repositories in dataset</div>
+                    <div class="chart-desc">Top 20 repos across all years and languages</div>
+                </div>
+                <span class="chart-badge">Spark SQL — ORDER BY stars</span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Repository</th>
+                            <th>Language</th>
+                            <th>Year</th>
+                            <th>Stars</th>
+                            <th>Forks</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-repos">
+                        <tr>
+                            <td colspan="6">
+                                <div class="loading">
+                                    <div class="spinner"></div> Loading data...
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ── User Profile Analysis ── -->
+        <p class="section-title" data-chart-view="user" style="margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border);">User Account Analysis</p>
+        <div class="filter-bar" data-chart-view="user">
+            <label>GitHub Username:</label>
+            <input type="text" id="github-username" placeholder="e.g. torvalds" onkeydown="if(event.key === 'Enter') fetchUserAnalysis()">
+            <button class="pill active" onclick="fetchUserAnalysis()" style="margin-left: 10px;">Analyze User</button>
+        </div>
+        
+        <div id="user-loading" style="display:none;" class="loading" data-chart-view="user">
+            <div class="spinner"></div> Loading user data...
+        </div>
+        <div id="user-error" style="display:none; color: var(--red); margin-bottom: 20px; padding: 12px; background: rgba(248, 81, 73, 0.1); border-radius: 6px; border: 1px solid var(--red);" data-chart-view="user"></div>
+
+        <div id="user-results" style="display:none;" data-chart-view="user">
+            <!-- Profile Summary -->
+            <div class="cards" style="margin-bottom: 20px;">
+                <div class="card card-accent">
+                    <div class="card-label">Public Repos</div>
+                    <div class="card-value" id="user-repos">—</div>
+                </div>
+                <div class="card card-green">
+                    <div class="card-label">Followers</div>
+                    <div class="card-value" id="user-followers">—</div>
+                </div>
+                <div class="card card-purple">
+                    <div class="card-label">Following</div>
+                    <div class="card-value" id="user-following">—</div>
+                </div>
+                <div class="card card-yellow">
+                    <div class="card-label">Total Stars Earned</div>
+                    <div class="card-value" id="user-stars">—</div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="grid-3" style="margin-bottom:20px">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div>
+                            <div class="chart-title">Language Distribution</div>
+                            <div class="chart-desc">Repos per language</div>
+                        </div>
+                    </div>
+                    <canvas id="user-lang-chart" height="200"></canvas>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div>
+                            <div class="chart-title">Stars by Language</div>
+                            <div class="chart-desc">Total stars earned per language</div>
+                        </div>
+                    </div>
+                    <canvas id="user-lang-stars-chart" height="200"></canvas>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div>
+                            <div class="chart-title">Most Starred Repositories</div>
+                            <div class="chart-desc">Top repositories</div>
+                        </div>
+                    </div>
+                    <canvas id="user-stars-chart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer>
+        GitHub Repository Trend Analyzer &nbsp;|&nbsp;
+        Built with Apache Spark + MongoDB + Flask + Chart.js &nbsp;|&nbsp;
+        Big Data Analytics Project
+    </footer>
+
+
+    <script>
+        // ─────────────────────────────────────────────
+        // COLOR PALETTE — one color per language
+        // ─────────────────────────────────────────────
+
+        const LANG_COLORS = {
+            "Python": "#2f81f7",
+            "JavaScript": "#f7d154",
+            "TypeScript": "#3178c6",
+            "Rust": "#f74c00",
+            "Go": "#00acd7",
+            "Java": "#b07219",
+            "C++": "#9561ea",
+            "Kotlin": "#7f52ff",
+        };
+
+        const LANG_BADGE = {
+            "Python": "badge-blue",
+            "JavaScript": "badge-yellow",
+            "TypeScript": "badge-blue",
+            "Rust": "badge-orange",
+            "Go": "badge-teal",
+            "Java": "badge-orange",
+            "C++": "badge-purple",
+            "Kotlin": "badge-purple",
+        };
+
+        function langColor(lang) {
+            return LANG_COLORS[lang] || "#8b949e";
+        }
+
+        function numFormat(n) {
+            if (n >= 1000) return (n / 1000).toFixed(1) + "k";
+            return n;
+        }
+
+        /** Line chart: prefer stars_sum when present (repo counts hit API cap). */
+        function lineSeriesValue(d) {
+            if (!d) return 0;
+            if (d.stars_sum != null) return Number(d.stars_sum);
+            return Number(d.repo_count) || 0;
+        }
+
+        /** Growth bar: prefer growth_stars_pct (meaningful under 1k/repo cap). */
+        function growthMetric(d) {
+            if (!d) return null;
+            if (d.growth_stars_pct != null) return Number(d.growth_stars_pct);
+            if (d.growth_pct != null) return Number(d.growth_pct);
+            return null;
+        }
+
+        /** Pie: prefer share_pct_stars so slices differ when repo counts are equal. */
+        function pieSharePct(d) {
+            if (!d) return 0;
+            if (d.share_pct_stars != null) return Number(d.share_pct_stars);
+            return Number(d.share_pct) || 0;
+        }
+
+
+        // ─────────────────────────────────────────────
+        // GLOBAL DATA CACHE
+        // ─────────────────────────────────────────────
+
+        let ALL_DATA = {};
+        let CHARTS = {};
+
+        function destroyChart(key) {
+            if (CHARTS[key]) {
+                CHARTS[key].destroy();
+                delete CHARTS[key];
+            }
+        }
+
+        function uniqSortedYears(raw) {
+            const years = [...new Set((raw || [])
+                .map(d => d && d.year)
+                .filter(y => y != null)
+                .map(y => Number(y))
+                .filter(y => Number.isFinite(y))
+            )];
+            years.sort((a, b) => a - b);
+            return years;
+        }
+
+        function populateYearDropdown() {
+            const sel = document.getElementById("filter-year");
+            if (!sel) return;
+
+            const prev = sel.value || "all";
+            const trends = ALL_DATA["lang-trends"];
+            const raw = Array.isArray(trends) ? trends : [];
+            const years = uniqSortedYears(raw);
+
+            const options = [`<option value="all">All Years</option>`]
+                .concat(years.map(y => `<option value="${y}">${y}</option>`));
+            sel.innerHTML = options.join("");
+
+            // Restore previous selection if still available
+            const hasPrev = [...sel.options].some(o => o.value === prev);
+            sel.value = hasPrev ? prev : "all";
+        }
+
+        function applyView(view) {
+            const showAll = view === "all";
+            // Only panels inside <main> — avoids matching random `data-*` on the document
+            // (extensions / libs) which could hide the whole page including filters.
+            document.querySelectorAll("main [data-chart-view]").forEach(el => {
+                const allowed = (el.getAttribute("data-chart-view") || "")
+                    .split(",")
+                    .map(s => s.trim())
+                    .filter(Boolean);
+                const shouldShow = showAll || allowed.includes(view);
+                el.style.display = shouldShow ? "" : "none";
+            });
+        }
+
+
+        // ─────────────────────────────────────────────
+        // FETCH ALL API DATA ON PAGE LOAD
+        // ─────────────────────────────────────────────
+
+        async function fetchAll() {
+            const endpoints = [
+                "summary", "lang-trends", "star-averages",
+                "growth-rates", "market-share", "topic-trends", "top-repos"
+            ];
+
+            const results = await Promise.all(
+                endpoints.map(e => fetch(`/api/${e}`).then(r => r.json()))
+            );
+
+            endpoints.forEach((e, i) => ALL_DATA[e] = results[i]);
+
+            renderSummaryCards();
+            populateYearDropdown();
+            renderLineChart();
+            renderGrowthChart();
+            renderPieChart();
+            renderStarChart();
+            renderTopicsChart();
+            renderRepoTable();
+
+            // Ensure button state and view are consistent on load
+            applyView("all");
+        }
+
+
+        // ─────────────────────────────────────────────
+        // SUMMARY CARDS
+        // ─────────────────────────────────────────────
+
+        function renderSummaryCards() {
+            const s = ALL_DATA["summary"];
+            document.getElementById("stat-total").textContent = s.total_repos || "—";
+            document.getElementById("stat-langs").textContent = s.languages || "—";
+            document.getElementById("stat-years").textContent = s.years_covered || "—";
+            document.getElementById("stat-top").textContent = s.top_language || "—";
+        }
+
+
+        // ─────────────────────────────────────────────
+        // CHART 1: LINE CHART — Repo count over years
+        // ─────────────────────────────────────────────
+
+        function renderLineChart() {
+            const raw = ALL_DATA["lang-trends"];
+            const langs = [...new Set(raw.map(d => d.language))].sort();
+            const years = [...new Set(raw.map(d => d.year))].sort();
+
+            const datasets = langs.map(lang => {
+                const points = years.map(year => {
+                    const match = raw.find(d => d.language === lang && d.year === year);
+                    return match ? lineSeriesValue(match) : 0;
+                });
+                return {
+                    label: lang,
+                    data: points,
+                    borderColor: langColor(lang),
+                    backgroundColor: langColor(lang) + "20",
+                    borderWidth: 2.5,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    tension: 0.3,
+                    fill: false,
+                };
+            });
+
+            const ctx = document.getElementById("chart-line").getContext("2d");
+            CHARTS["line"] = new Chart(ctx, {
+                type: "line",
+                data: { labels: years, datasets },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: "top",
+                            labels: { color: "#8b949e", font: { size: 12 }, padding: 16 }
+                        },
+                        tooltip: { mode: "index", intersect: false }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: "#8b949e" },
+                            grid: { color: "#21262d" }
+                        },
+                        y: {
+                            ticks: { color: "#8b949e", callback: v => numFormat(v) },
+                            grid: { color: "#21262d" },
+                            title: { display: true, text: "Total stars (sum)", color: "#8b949e", font: { size: 12 } }
+                        }
+                    }
+                }
+            });
+        }
+
+
+        // ─────────────────────────────────────────────
+        // CHART 2: BAR — Growth rate (latest year)
+        // ─────────────────────────────────────────────
+
+        function renderGrowthChart() {
+            const raw = ALL_DATA["growth-rates"];
+            const maxYear = Math.max(...raw.map(d => d.year));
+            const latest = raw.filter(d => d.year === maxYear && growthMetric(d) != null)
+                .sort((a, b) => growthMetric(b) - growthMetric(a))
+                .slice(0, 8);
+
+            const ctx = document.getElementById("chart-growth").getContext("2d");
+            destroyChart("growth");
+            CHARTS["growth"] = new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels: latest.map(d => d.language),
+                    datasets: [{
+                        label: `Star growth % (${maxYear} vs ${maxYear - 1})`,
+                        data: latest.map(d => growthMetric(d)),
+                        backgroundColor: latest.map(d => langColor(d.language) + "cc"),
+                        borderColor: latest.map(d => langColor(d.language)),
+                        borderWidth: 1,
+                        borderRadius: 6,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => ` ${ctx.parsed.y.toFixed(1)}% (total stars YoY)`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { color: "#8b949e" }, grid: { display: false } },
+                        y: {
+                            ticks: { color: "#8b949e", callback: v => v + "%" },
+                            grid: { color: "#21262d" }
+                        }
+                    }
+                }
+            });
+        }
+
+
+        // ─────────────────────────────────────────────
+        // CHART 3: PIE/DONUT — Market share (latest year)
+        // ─────────────────────────────────────────────
+
+        function renderPieChart() {
+            const raw = ALL_DATA["market-share"];
+            const years = uniqSortedYears(raw);
+            const maxYear = years.length ? years[years.length - 1] : null;
+            if (maxYear == null) return;
+
+            const yearRows = raw.filter(d => d.year === maxYear);
+            const sorted = yearRows
+                .slice()
+                .sort((a, b) => pieSharePct(b) - pieSharePct(a));
+
+            const topN = 8;
+            const top = sorted.slice(0, topN);
+            const total = yearRows.reduce((acc, d) => acc + pieSharePct(d), 0);
+            const topSum = top.reduce((acc, d) => acc + pieSharePct(d), 0);
+            const other = Math.max(0, total - topSum);
+
+            const labels = top.map(d => d.language);
+            const values = top.map(d => pieSharePct(d));
+            const colors = top.map(d => langColor(d.language) + "dd");
+
+            if (other > 0.0001) {
+                labels.push("Other");
+                values.push(other);
+                colors.push("#8b949edd");
+            }
+
+            const ctx = document.getElementById("chart-pie").getContext("2d");
+            destroyChart("pie");
+            CHARTS["pie"] = new Chart(ctx, {
+                type: "doughnut",
+                data: {
+                    labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: colors,
+                        borderColor: "#161b22",
+                        borderWidth: 3,
+                        hoverOffset: 6,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    cutout: "60%",
+                    plugins: {
+                        legend: {
+                            position: "right",
+                            labels: { color: "#8b949e", font: { size: 12 }, padding: 12, boxWidth: 12 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => {
+                                    const v = ctx.raw != null ? ctx.raw
+                                        : (typeof ctx.parsed === "number" ? ctx.parsed : ctx.parsed?.y);
+                                    const n = Number(v);
+                                    return ` ${ctx.label}: ${Number.isFinite(n) ? n.toFixed(1) : v}% (of stars)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+
+        // ─────────────────────────────────────────────
+        // CHART 4: BAR — Average stars per language
+        // ─────────────────────────────────────────────
+
+        function renderStarChart() {
+            const raw = ALL_DATA["star-averages"];
+
+            // Average across all years per language
+            const byLang = {};
+            raw.forEach(d => {
+                if (!byLang[d.language]) byLang[d.language] = { sum: 0, cnt: 0 };
+                byLang[d.language].sum += d.avg_stars;
+                byLang[d.language].cnt += 1;
+            });
+
+            const langs = Object.keys(byLang)
+                .map(lang => ({ lang, avg: byLang[lang].sum / byLang[lang].cnt }))
+                .sort((a, b) => b.avg - a.avg);
+
+            const ctx = document.getElementById("chart-stars").getContext("2d");
+            destroyChart("stars");
+            CHARTS["stars"] = new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels: langs.map(d => d.lang),
+                    datasets: [{
+                        label: "Avg Stars per Repo",
+                        data: langs.map(d => Math.round(d.avg)),
+                        backgroundColor: langs.map(d => langColor(d.lang) + "bb"),
+                        borderColor: langs.map(d => langColor(d.lang)),
+                        borderWidth: 1,
+                        borderRadius: 6,
+                    }]
+                },
+                options: {
+                    indexAxis: "y",
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: { label: ctx => ` ${numFormat(ctx.parsed.x)} avg stars` }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: "#8b949e", callback: v => numFormat(v) },
+                            grid: { color: "#21262d" }
+                        },
+                        y: { ticks: { color: "#8b949e" }, grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+
+        // ─────────────────────────────────────────────
+        // CHART 5: BAR — Top topics
+        // ─────────────────────────────────────────────
+
+        function renderTopicsChart() {
+            const raw = ALL_DATA["topic-trends"];
+            const maxYear = Math.max(...raw.map(d => d.year));
+            const top15 = raw.filter(d => d.year === maxYear)
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 15);
+
+            const colors = [
+                "#2f81f7", "#3fb950", "#f78166", "#bc8cff", "#e3b341",
+                "#00acd7", "#f74c00", "#7f52ff", "#39d353", "#f7d154",
+                "#b07219", "#9561ea", "#3178c6", "#f85149", "#39c5cf"
+            ];
+
+            const ctx = document.getElementById("chart-topics").getContext("2d");
+            destroyChart("topics");
+            CHARTS["topics"] = new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels: top15.map(d => d.topic),
+                    datasets: [{
+                        label: `Topic count (${maxYear})`,
+                        data: top15.map(d => d.count),
+                        backgroundColor: top15.map((_, i) => colors[i % colors.length] + "bb"),
+                        borderColor: top15.map((_, i) => colors[i % colors.length]),
+                        borderWidth: 1,
+                        borderRadius: 4,
+                    }]
+                },
+                options: {
+                    indexAxis: "y",
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: "#8b949e" }, grid: { color: "#21262d" } },
+                        y: { ticks: { color: "#8b949e", font: { size: 11 } }, grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+
+        // ─────────────────────────────────────────────
+        // TABLE: Top repos
+        // ─────────────────────────────────────────────
+
+        function renderRepoTable() {
+            const repos = ALL_DATA["top-repos"].slice(0, 20);
+            const tbody = document.getElementById("table-repos");
+            tbody.innerHTML = "";
+
+            repos.forEach((repo, i) => {
+                const badge = LANG_BADGE[repo.language] || "badge-blue";
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+      <td style="color:var(--muted);width:40px">${i + 1}</td>
+      <td><strong style="color:var(--text)">${repo.name}</strong></td>
+      <td><span class="badge ${badge}">${repo.language || "—"}</span></td>
+      <td style="color:var(--muted)">${repo.year || "—"}</td>
+      <td><strong>&#9733; ${(repo.stars || 0).toLocaleString()}</strong></td>
+      <td style="color:var(--muted)">${(repo.forks || 0).toLocaleString()}</td>
+    `;
+                tbody.appendChild(tr);
+            });
+        }
+
+
+        // ─────────────────────────────────────────────
+        // FILTER LOGIC
+        // ─────────────────────────────────────────────
+
+        function applyFilters() {
+            const year = document.getElementById("filter-year").value;
+            const lang = document.getElementById("filter-lang").value;
+
+            // Update line chart — filter languages
+            if (CHARTS["line"]) {
+                CHARTS["line"].data.datasets.forEach(ds => {
+                    ds.hidden = (lang !== "all" && ds.label !== lang);
+                });
+                CHARTS["line"].update();
+            }
+
+            // Update growth chart — filter by year
+            if (CHARTS["growth"]) {
+                const raw = ALL_DATA["growth-rates"];
+                const years = uniqSortedYears(raw);
+                const yr = (year === "all")
+                    ? (years.length ? years[years.length - 1] : null)
+                    : parseInt(year);
+
+                if (yr != null) {
+                    const latest = raw.filter(d => d.year === yr && growthMetric(d) != null)
+                        .sort((a, b) => growthMetric(b) - growthMetric(a))
+                        .slice(0, 8);
+                    CHARTS["growth"].data.labels = latest.map(d => d.language);
+                    CHARTS["growth"].data.datasets[0].data = latest.map(d => growthMetric(d));
+                    CHARTS["growth"].data.datasets[0].backgroundColor = latest.map(d => langColor(d.language) + "cc");
+                    CHARTS["growth"].data.datasets[0].borderColor = latest.map(d => langColor(d.language));
+                    CHARTS["growth"].data.datasets[0].label = `Star growth % (${yr} vs ${yr - 1})`;
+                    CHARTS["growth"].update();
+                }
+            }
+
+            // Update pie chart + topics chart to selected year (or latest)
+            if (year !== "all") {
+                const yr = parseInt(year);
+                updatePieChartYear(yr);
+                updateTopicsChartYear(yr);
+            } else {
+                updatePieChartYear(null);
+                updateTopicsChartYear(null);
+            }
+        }
+
+        function updatePieChartYear(yearOrNull) {
+            const raw = ALL_DATA["market-share"];
+            if (!raw || !raw.length) return;
+            const years = uniqSortedYears(raw);
+            if (!years.length) return;
+
+            const yr = (yearOrNull == null) ? years[years.length - 1] : yearOrNull;
+            if (!years.includes(yr)) return;
+
+            const yearRows = raw.filter(d => d.year === yr);
+            const sorted = yearRows
+                .slice()
+                .sort((a, b) => pieSharePct(b) - pieSharePct(a));
+
+            const topN = 8;
+            const top = sorted.slice(0, topN);
+            const total = yearRows.reduce((acc, d) => acc + pieSharePct(d), 0);
+            const topSum = top.reduce((acc, d) => acc + pieSharePct(d), 0);
+            const other = Math.max(0, total - topSum);
+
+            const labels = top.map(d => d.language);
+            const values = top.map(d => pieSharePct(d));
+            const colors = top.map(d => langColor(d.language) + "dd");
+            if (other > 0.0001) {
+                labels.push("Other");
+                values.push(other);
+                colors.push("#8b949edd");
+            }
+
+            if (!CHARTS["pie"]) {
+                renderPieChart();
+                return;
+            }
+
+            CHARTS["pie"].data.labels = labels;
+            CHARTS["pie"].data.datasets[0].data = values;
+            CHARTS["pie"].data.datasets[0].backgroundColor = colors;
+            CHARTS["pie"].update();
+        }
+
+        function updateTopicsChartYear(yearOrNull) {
+            const raw = ALL_DATA["topic-trends"];
+            if (!raw || !raw.length || !CHARTS["topics"]) return;
+
+            const years = uniqSortedYears(raw);
+            if (!years.length) return;
+
+            const yr = (yearOrNull == null) ? years[years.length - 1] : yearOrNull;
+            if (!years.includes(yr)) return;
+
+            const top15 = raw.filter(d => d.year === yr)
+                .sort((a, b) => (b.count || 0) - (a.count || 0))
+                .slice(0, 15);
+
+            CHARTS["topics"].data.labels = top15.map(d => d.topic);
+            CHARTS["topics"].data.datasets[0].data = top15.map(d => d.count);
+            CHARTS["topics"].data.datasets[0].label = `Topic count (${yr})`;
+            CHARTS["topics"].update();
+        }
+
+        function setView(view, btn) {
+            document.querySelectorAll(".pill").forEach(p => p.classList.remove("active"));
+            btn.classList.add("active");
+            applyView(view);
+        }
+
+
+        // ─────────────────────────────────────────────
+        // USER ANALYSIS LOGIC
+        // ─────────────────────────────────────────────
+
+        async function fetchUserAnalysis() {
+            const username = document.getElementById('github-username').value.trim();
+            if(!username) return;
+            
+            document.getElementById('user-loading').style.display = 'flex';
+            document.getElementById('user-error').style.display = 'none';
+            document.getElementById('user-results').style.display = 'none';
+            
+            try {
+                const res = await fetch(`/api/user/${username}`);
+                const data = await res.json();
+                
+                if(!res.ok) {
+                    throw new Error(data.error || "Failed to fetch user");
+                }
+                
+                document.getElementById('user-repos').textContent = data.profile.public_repos;
+                document.getElementById('user-followers').textContent = data.profile.followers;
+                document.getElementById('user-following').textContent = data.profile.following;
+                
+                const repos = data.repos || [];
+                const totalStars = repos.reduce((sum, repo) => sum + repo.stargazers_count, 0);
+                document.getElementById('user-stars').textContent = totalStars;
+                
+                renderUserCharts(repos);
+                
+                document.getElementById('user-results').style.display = 'block';
+            } catch(e) {
+                const errDiv = document.getElementById('user-error');
+                errDiv.innerHTML = `<strong>Error:</strong> ${e.message}`;
+                errDiv.style.display = 'block';
+            } finally {
+                document.getElementById('user-loading').style.display = 'none';
+            }
+        }
+
+        function renderUserCharts(repos) {
+            // Processing data
+            const langCounts = {};
+            const langStars = {};
+            repos.forEach(r => {
+                const l = r.language || 'Unknown';
+                langCounts[l] = (langCounts[l] || 0) + 1;
+                langStars[l] = (langStars[l] || 0) + r.stargazers_count;
+            });
+            
+            // 1. Language Distribution (Doughnut)
+            const langs = Object.keys(langCounts).sort((a,b) => langCounts[b] - langCounts[a]).slice(0, 8);
+            const langCtx = document.getElementById('user-lang-chart').getContext('2d');
+            destroyChart('userLang');
+            CHARTS['userLang'] = new Chart(langCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: langs,
+                    datasets: [{
+                        data: langs.map(l => langCounts[l]),
+                        backgroundColor: langs.map(l => langColor(l) + 'dd'),
+                        borderColor: '#161b22',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { color: '#8b949e', font: { size: 10 }, boxWidth: 10 } } }
+                }
+            });
+            
+            // 2. Stars by Language (Pie)
+            const starLangs = Object.keys(langStars).filter(l => langStars[l] > 0).sort((a,b) => langStars[b] - langStars[a]).slice(0, 8);
+            const langStarsCtx = document.getElementById('user-lang-stars-chart').getContext('2d');
+            destroyChart('userLangStars');
+            CHARTS['userLangStars'] = new Chart(langStarsCtx, {
+                type: 'pie',
+                data: {
+                    labels: starLangs,
+                    datasets: [{
+                        data: starLangs.map(l => langStars[l]),
+                        backgroundColor: starLangs.map(l => langColor(l) + 'dd'),
+                        borderColor: '#161b22',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { color: '#8b949e', font: { size: 10 }, boxWidth: 10 } } }
+                }
+            });
+            
+            // 3. Top Repos by Stars (Bar)
+            const topRepos = [...repos].sort((a,b) => b.stargazers_count - a.stargazers_count).slice(0, 5);
+            const starsCtx = document.getElementById('user-stars-chart').getContext('2d');
+            destroyChart('userStars');
+            CHARTS['userStars'] = new Chart(starsCtx, {
+                type: 'bar',
+                data: {
+                    labels: topRepos.map(r => r.name),
+                    datasets: [{
+                        label: 'Stars',
+                        data: topRepos.map(r => r.stargazers_count),
+                        backgroundColor: topRepos.map(r => langColor(r.language || 'Unknown') + 'dd'),
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#8b949e' }, grid: { color: "#21262d" } },
+                        y: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        // ─────────────────────────────────────────────
+        // BOOT
+        // ─────────────────────────────────────────────
+
+        fetchAll().catch(err => {
+            console.error("Failed to load data:", err);
+            document.querySelectorAll("canvas").forEach(c => {
+                c.insertAdjacentHTML("afterend",
+                    '<p style="color:#f85149;font-size:13px;padding:12px">Could not load data. Make sure spark_analysis.py has been run first.</p>'
+                );
+            });
+        });
+    </script>
+</body>
+
+</html>
